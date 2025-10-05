@@ -9,7 +9,6 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LayersIcon from '@mui/icons-material/Layers';
-import BuildIcon from '@mui/icons-material/Build';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 
 import { Link } from 'react-router-dom';
@@ -63,12 +62,6 @@ export const secondaryListItems = (
     <ListItemButton>
       <ListItemIcon>
         <AssignmentIcon />
-      </ListItemIcon>
-      <ListItemText primary="Sitios" />
-    </ListItemButton>
-  </React.Fragment>
-);
-       <AssignmentIcon />
       </ListItemIcon>
       <ListItemText primary="Sitios" />
     </ListItemButton>

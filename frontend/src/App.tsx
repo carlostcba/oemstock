@@ -5,7 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import MainLayout from './components/MainLayout';
 import DashboardPage from './pages/DashboardPage';
-
+import AssemblyPage from './pages/AssemblyPage';
 import CatalogPage from './pages/CatalogPage';
 
 import ProtectedRoute from './components/ProtectedRoute';
