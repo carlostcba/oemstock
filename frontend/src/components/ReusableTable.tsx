@@ -4,18 +4,25 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography
 } from '@mui/material';
 
-interface Column {
-  id: string;
+// Hacemos la interfaz Column genérica para que pueda usar el tipo T
+export interface Column<T> {
+  id: keyof T;
   label: string;
   minWidth?: number;
+  render?: (row: T) => React.ReactNode;
 }
 
-interface ReusableTableProps {
-  columns: Column[];
-  data: any[];
+// Hacemos el componente genérico y requerimos que los datos tengan un id
+export interface DataWithId {
+  id: string | number;
 }
 
-const ReusableTable: React.FC<ReusableTableProps> = ({ columns, data }) => {
+interface ReusableTableProps<T extends DataWithId> {
+  columns: Column<T>[];
+  data: T[];
+}
+
+const ReusableTable = <T extends DataWithId>({ columns, data }: ReusableTableProps<T>) => {
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden' }}>
       <TableContainer sx={{ maxHeight: 640 }}>
@@ -23,8 +30,8 @@ const ReusableTable: React.FC<ReusableTableProps> = ({ columns, data }) => {
           <TableHead>
             <TableRow>
               {columns.map((column) => (
-                <TableCell
-                  key={column.id}
+                <TableCell // Usamos column.id como string para la key
+                  key={column.id as string}
                   style={{ minWidth: column.minWidth, fontWeight: 'bold' }}
                 >
                   {column.label}
@@ -35,11 +42,14 @@ const ReusableTable: React.FC<ReusableTableProps> = ({ columns, data }) => {
           <TableBody>
             {data.length > 0 ? (
               data.map((row, index) => (
-                <TableRow hover role="checkbox" tabIndex={-1} key={index}>
+                <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
                   {columns.map((column) => {
-                    const value = row[column.id];
+                    // Si hay una función de renderizado, la usamos. Si no, accedemos a la propiedad.
+                    const value = column.render
+                      ? column.render(row)
+                      : (row[column.id] as React.ReactNode);
                     return (
-                      <TableCell key={column.id}>
+                      <TableCell key={column.id as string} align={typeof value === 'number' ? 'right' : 'left'}>
                         {value}
                       </TableCell>
                     );

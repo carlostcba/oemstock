@@ -32,6 +32,11 @@ Este es el servidor backend para la aplicación OemStock. El objetivo es desarro
    npm install
    ```
 
+### Configuración de Variables de Entorno
+1. Cree un archivo `.env` en la raíz del directorio `backend`.
+2. Añada las variables necesarias, como `PORT` y `JWT_SECRET`. Puede usar el archivo `.env.example` como guía.
+   **Importante:** Nunca comparta su archivo `.env` en un repositorio público.
+
 ### Configuración de la Base de Datos
 1. La configuración se encuentra en `config/config.json`.
 2. Para el entorno de desarrollo, el backend utilizará un archivo `database.sqlite` ubicado en la raíz del proyecto (`c:\github\Oemstock\database.sqlite`).

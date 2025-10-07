@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_super_secreto';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Extender la interfaz Request de Express para incluir la propiedad 'user'
 declare global {
@@ -20,17 +20,11 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return res.status(401).json({ message: 'Acceso denegado. No se proporcionó token.' }); // Unauthorized
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET!, (err, user) => {
     if (err) {
-      // Si el token expiró, err.name será 'TokenExpiredError'
       return res.status(403).json({ message: 'Token inválido o expirado.' }); // Forbidden
     }
-
-    // Adjuntar el payload del usuario decodificado a la solicitud para uso posterior
     req.user = user;
-
     next();
   });
 };
-
-export {};

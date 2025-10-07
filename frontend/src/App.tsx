@@ -30,11 +30,11 @@ function App() {
                 </ProtectedRoute>
               }
             >
+              {/* La ruta índice ahora está al principio para mayor claridad. */}
+              <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="catalog" element={<CatalogPage />} />
               <Route path="assembly" element={<AssemblyPage />} />
-              {/* Redirección de la raíz a /dashboard */}
-              <Route index element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
         </BrowserRouter>

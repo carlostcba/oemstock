@@ -52,7 +52,7 @@ const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 app.use(express_1.default.json());
 app.get('/', (req, res) => {
-    res.send('Servidor OEMSPOT funcionando!');
+    res.send('Servidor OemStock funcionando!');
 });
 // --- Rutas para gestion de Items y Stock ---
 // GET /api/items/templates - Obtener todas las plantillas (Kits y Productos)
@@ -74,17 +74,28 @@ app.get('/api/items/templates', (req, res) => __awaiter(void 0, void 0, void 0, 
 // GET /api/items/:id/bom - Obtener el Bill of Materials de una plantilla
 app.get('/api/items/:id/bom', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const parentId = req.params.id;
+        // Validar que el ID es un número para prevenir inyección de SQL y errores
+        const parentId = parseInt(req.params.id, 10);
+        if (isNaN(parentId)) {
+            return res.status(400).json({ message: 'El ID del item debe ser un número.' });
+        }
+        // Verificar primero si el item principal existe
+        const parentItem = yield db.Item.findByPk(parentId);
+        if (!parentItem) {
+            return res.status(404).json({ message: 'No se encontró el item de la plantilla.' });
+        }
         const bom = yield db.ItemBom.findAll({
             where: { parent_item_id: parentId },
             // Incluir los datos completos del item hijo
             include: [{
                     model: db.Item,
                     as: 'Child',
-                    include: ['uom']
+                    attributes: ['id', 'sku', 'name', 'type'],
+                    include: [{ model: db.Uom, as: 'uom', attributes: ['id', 'name', 'symbol'] }]
                 }]
         });
-        if (!bom) {
+        // CORRECTO: `findAll` devuelve un array. Si está vacío, no se encontró el BOM.
+        if (bom.length === 0) {
             return res.status(404).json({ message: 'No se encontró la lista de materiales para el item' });
         }
         res.json(bom);
@@ -97,8 +108,12 @@ app.get('/api/items/:id/bom', (req, res) => __awaiter(void 0, void 0, void 0, fu
 // POST /api/stock/assembly - Iniciar un ensamblado (Reservar stock)
 app.post('/api/stock/assembly', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { templateId, quantity, siteId } = req.body;
-    if (!templateId || !quantity || !siteId) {
-        return res.status(400).json({ message: 'templateId, quantity, y siteId son requeridos' });
+    // Validación de entrada más robusta
+    if (typeof templateId !== 'number' || typeof quantity !== 'number' || typeof siteId !== 'number') {
+        return res.status(400).json({ message: 'Los campos templateId, quantity, y siteId son requeridos y deben ser números.' });
+    }
+    if (quantity <= 0) {
+        return res.status(400).json({ message: 'La cantidad (quantity) debe ser mayor que cero.' });
     }
     const transaction = yield db.sequelize.transaction();
     try {
@@ -108,34 +123,25 @@ app.post('/api/stock/assembly', (req, res) => __awaiter(void 0, void 0, void 0, 
             yield transaction.rollback();
             return res.status(404).json({ message: 'La plantilla no tiene materiales asociados.' });
         }
-        // 2. Verificar disponibilidad de todos los componentes
+        // 2. Verificar disponibilidad y reservar stock de forma atómica para evitar problemas de concurrencia
         for (const bomItem of bomItems) {
             const requiredQuantity = bomItem.quantity * quantity;
+            // Buscamos el stock y bloqueamos la fila para la transacción (lock.UPDATE)
             const childStock = yield db.Stock.findOne({
-                where: { itemId: bomItem.child_item_id, siteId: siteId }
+                where: { itemId: bomItem.child_item_id, siteId: siteId },
+                transaction,
+                lock: transaction.LOCK.UPDATE
             });
             const availableStock = ((childStock === null || childStock === void 0 ? void 0 : childStock.on_hand) || 0) - ((childStock === null || childStock === void 0 ? void 0 : childStock.reserved) || 0);
             if (!childStock || availableStock < requiredQuantity) {
                 yield transaction.rollback();
                 const childItem = yield db.Item.findByPk(bomItem.child_item_id);
-                return res.status(400).json({ message: `Stock insuficiente para el componente: ${childItem.name}` });
+                // Usamos 409 (Conflict) para indicar un problema de estado, como stock insuficiente.
+                return res.status(409).json({ message: `Stock insuficiente para el componente: ${childItem === null || childItem === void 0 ? void 0 : childItem.name}` });
             }
-        }
-        // 3. Si todo está disponible, reservar los componentes
-        for (const bomItem of bomItems) {
-            const requiredQuantity = bomItem.quantity * quantity;
-            const childStock = yield db.Stock.findOne({
-                where: { itemId: bomItem.child_item_id, siteId: siteId },
-                transaction
-            });
-            // Sequelize findOne/create returns an array [instance, created]
-            const [stockItem, created] = yield db.Stock.findOrCreate({
-                where: { itemId: bomItem.child_item_id, siteId: siteId },
-                defaults: { on_hand: 0, reserved: 0 },
-                transaction
-            });
-            stockItem.reserved += requiredQuantity;
-            yield stockItem.save({ transaction });
+            // Si hay stock, lo reservamos inmediatamente en la misma operación
+            childStock.reserved += requiredQuantity;
+            yield childStock.save({ transaction });
         }
         yield transaction.commit();
         res.status(200).json({ message: 'Stock reservado para ensamblado exitosamente' });
@@ -148,6 +154,13 @@ app.post('/api/stock/assembly', (req, res) => __awaiter(void 0, void 0, void 0, 
 }));
 app.post('/auth/register', auth.register);
 app.post('/auth/login', auth.login);
-app.listen(port, () => {
-    console.log(`Servidor escuchando en http://localhost:${port}`);
+// Sincronizar la base de datos ANTES de iniciar el servidor
+db.sequelize.sync().then(() => {
+    app.listen(port, () => {
+        console.log(`Servidor escuchando en http://localhost:${port}`);
+        console.log('Modelos de base de datos sincronizados correctamente.');
+    });
+}).catch((error) => {
+    console.error('No se pudo conectar o sincronizar la base de datos:', error);
+    process.exit(1); // Salir del proceso si la base de datos no está disponible
 });

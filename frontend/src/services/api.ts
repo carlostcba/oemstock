@@ -1,4 +1,4 @@
-const BASE_URL = '/api'; // Asumimos que el frontend se sirve desde el mismo origen que el backend
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
 
 // --- Tipos de Datos ---
 export interface Uom {
@@ -32,47 +32,88 @@ export interface AssemblyPayload {
   siteId: number;
 }
 
-// --- Funciones de API ---
+// --- Lógica de API ---
+
+let authToken: string | null = null;
+
+/**
+ * Establece el token de autenticación para todas las futuras llamadas a la API.
+ * @param token - El token JWT.
+ */
+export const setAuthToken = (token: string | null) => {
+  authToken = token;
+};
+
+/**
+ * Centraliza el manejo de errores de la API.
+ */
+async function handleApiError(response: Response): Promise<void> {
+  try {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Error: ${response.status} ${response.statusText}`);
+  } catch (e) {
+    if (e instanceof Error) {
+      throw e;
+    }
+    throw new Error(`Error: ${response.status} ${response.statusText}`);
+  }
+}
+
+/**
+ * Realiza una petición fetch y maneja la respuesta y la autenticación.
+ */
+async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  headers.set('Content-Type', 'application/json');
+
+  if (authToken) {
+    headers.set('Authorization', `Bearer ${authToken}`);
+  }
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  // Si la respuesta es 204 No Content, no hay cuerpo que parsear
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  return response.json() as Promise<T>;
+}
 
 /**
  * Obtiene todas las plantillas (items de tipo KIT o PRODUCT)
  */
 export const getTemplates = async (): Promise<Item[]> => {
-  const response = await fetch(`${BASE_URL}/items/templates`);
-  if (!response.ok) {
-    throw new Error('Error al obtener las plantillas');
-  }
-  return response.json();
+  return apiFetch<Item[]>(`${BASE_URL}/items/templates`);
 };
 
 /**
  * Obtiene la lista de materiales (BOM) para una plantilla específica
- * @param templateId - El ID de la plantilla
  */
 export const getBom = async (templateId: number): Promise<BomItem[]> => {
-  const response = await fetch(`${BASE_URL}/items/${templateId}/bom`);
-  if (!response.ok) {
-    throw new Error('Error al obtener la lista de materiales');
-  }
-  return response.json();
+  return apiFetch<BomItem[]>(`${BASE_URL}/items/${templateId}/bom`);
 };
 
 /**
  * Envía una nueva solicitud de ensamblado para reservar stock
- * @param payload - Los datos para el ensamblado
  */
 export const createAssembly = async (payload: AssemblyPayload): Promise<any> => {
-  const response = await fetch(`${BASE_URL}/stock/assembly`, {
+  return apiFetch<any>(`${BASE_URL}/stock/assembly`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(payload),
   });
+};
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Error al crear la solicitud de ensamblado');
-  }
-  return response.json();
+/**
+ * Inicia sesión de un usuario.
+ */
+export const login = async (email: string, password: string): Promise<{ token: string }> => {
+  return apiFetch<{ token: string }>(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
 };

@@ -1,45 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Container, Typography, Grid, Paper, FormControl, InputLabel, Select, 
-  MenuItem, TextField, Button, CircularProgress, Alert, Box,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+import {
+  Box,
+  Typography,
+  Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Button,
+  CircularProgress,
+  Alert,
+  Grid,
+  SelectChangeEvent
 } from '@mui/material';
 import * as api from '../services/api';
+import ReusableTable, { Column } from '../components/ReusableTable'; // Importamos Column
 
-// Lista de sitios hardcodeada hasta que haya un endpoint en el backend
-const sites = [
-  { id: 1, name: 'Alberti' },
-  { id: 2, name: 'Delviso' },
-  { id: 3, name: 'Casa Matriz' },
+// Definimos las columnas para la tabla de la lista de materiales (BOM)
+const bomColumns: Column<api.BomItem>[] = [ // Usamos la interfaz Column importada
+  { id: 'child_item_id', label: 'ID Componente', minWidth: 120 },
+  {
+    id: 'Child',
+    label: 'Nombre Componente',
+    minWidth: 250,
+    // Usamos una función de renderizado para mostrar el nombre del ítem anidado
+    render: (row: api.BomItem) => row.Child.name,
+  },
+  { id: 'quantity', label: 'Cantidad Requerida', minWidth: 150 },
 ];
 
-const AssemblyPage = () => {
-  // --- ESTADO DEL COMPONENTE ---
+const AssemblyPage: React.FC = () => {
+  // Estados para los datos
   const [templates, setTemplates] = useState<api.Item[]>([]);
-  const [bom, setBom] = useState<api.BomItem[]>([]);
-  
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  const [selectedSite, setSelectedSite] = useState<string>('');
-  const [quantity, setQuantity] = useState<string>('1');
-  
-  const [loadingTemplates, setLoadingTemplates] = useState<boolean>(false);
+  const [bom, setBom] = useState<api.BomItem[]>([]);
+  const [quantity, setQuantity] = useState<number>(1);
+
+  // Estados para la UI (carga, errores, éxito)
+  const [loadingTemplates, setLoadingTemplates] = useState<boolean>(true);
   const [loadingBom, setLoadingBom] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // --- EFECTOS (LIFECYCLE) ---
-
-  // Cargar plantillas al montar el componente
+  // Cargar las plantillas al montar el componente
   useEffect(() => {
     const fetchTemplates = async () => {
-      setLoadingTemplates(true);
       try {
+        setLoadingTemplates(true);
         const data = await api.getTemplates();
         setTemplates(data);
       } catch (err: any) {
-        setError('Error al cargar las plantillas.');
+        setError(err.message || 'Error al cargar las plantillas.');
       } finally {
         setLoadingTemplates(false);
       }
@@ -47,168 +60,108 @@ const AssemblyPage = () => {
     fetchTemplates();
   }, []);
 
-  // Cargar BOM cuando se selecciona una plantilla
-  useEffect(() => {
-    if (!selectedTemplate) {
-      setBom([]);
-      return;
-    }
+  // Manejar el cambio de plantilla seleccionada
+  const handleTemplateChange = async (event: SelectChangeEvent<string>) => {
+    const templateId = event.target.value;
+    setSelectedTemplate(templateId);
+    setBom([]);
+    setError(null);
+    setSuccess(null);
 
-    const fetchBom = async () => {
-      setLoadingBom(true);
-      setError(null);
+    if (templateId) {
       try {
-        const data = await api.getBom(Number(selectedTemplate));
-        setBom(data);
+        setLoadingBom(true);
+        const bomData = await api.getBom(Number(templateId));
+        setBom(bomData);
       } catch (err: any) {
-        setError('Error al cargar la lista de materiales.');
-        setBom([]);
+        setError(err.message || 'Error al cargar la lista de materiales.');
       } finally {
         setLoadingBom(false);
       }
-    };
-    fetchBom();
-  }, [selectedTemplate]);
+    }
+  };
 
-  // --- MANEJADORES DE EVENTOS ---
-
+  // Manejar el envío del formulario de ensamblado
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setSuccess(null);
 
-    if (!selectedTemplate || !selectedSite || !quantity || Number(quantity) <= 0) {
-      setError('Por favor, complete todos los campos correctamente.');
+    if (!selectedTemplate || quantity <= 0) {
+      setError('Por favor, seleccione una plantilla y una cantidad válida.');
       return;
     }
 
-    setSubmitting(true);
     try {
+      setSubmitting(true);
       const payload: api.AssemblyPayload = {
         templateId: Number(selectedTemplate),
-        siteId: Number(selectedSite),
-        quantity: Number(quantity),
+        quantity,
+        siteId: 1, // Hardcodeado por ahora, podría venir de un selector de sitio
       };
       const response = await api.createAssembly(payload);
-      setSuccess(response.message || 'Solicitud de ensamblado creada con éxito.');
-      // Resetear formulario
-      setSelectedTemplate('');
-      setSelectedSite('');
-      setQuantity('1');
-      setBom([]);
+      setSuccess(response.message);
     } catch (err: any) {
-      setError(err.message || 'Ocurrió un error al enviar la solicitud.');
+      // Aquí se mostrará el error específico de la API, como "Stock insuficiente"
+      setError(err.message || 'Ocurrió un error inesperado.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // --- RENDERIZADO DEL COMPONENTE ---
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Crear Ensamblado de Stock
+    <Paper sx={{ p: 3, margin: 'auto', flexGrow: 1 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Iniciar Ensamblado
       </Typography>
-      <Paper sx={{ p: 3 }}>
-        <Box component="form" onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            {/* Columna de Formulario */}
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>Paso 1: Seleccionar Producto</Typography>
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="template-select-label">Plantilla</InputLabel>
-                <Select
-                  labelId="template-select-label"
-                  value={selectedTemplate}
-                  label="Plantilla"
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
-                  disabled={loadingTemplates}
-                >
-                  {loadingTemplates ? <MenuItem>Cargando...</MenuItem> : templates.map((template) => (
-                    <MenuItem key={template.id} value={template.id}>
-                      {template.name} ({template.sku})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="site-select-label">Sitio de Ensamblado</InputLabel>
-                <Select
-                  labelId="site-select-label"
-                  value={selectedSite}
-                  label="Sitio de Ensamblado"
-                  onChange={(e) => setSelectedSite(e.target.value)}
-                >
-                  {sites.map((site) => (
-                    <MenuItem key={site.id} value={site.id}>
-                      {site.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-              <TextField
-                label="Cantidad a Ensamblar"
-                type="number"
-                fullWidth
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                inputProps={{ min: 1 }}
-                sx={{ mb: 3 }}
-              />
-              
-              <Button 
-                type="submit" 
-                variant="contained" 
-                color="primary" 
-                disabled={submitting || !selectedTemplate || !selectedSite}
-                fullWidth
+      <Box component="form" onSubmit={handleSubmit} noValidate>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth disabled={loadingTemplates}>
+              <InputLabel id="template-select-label">Plantilla de Producto/Kit</InputLabel>
+              <Select
+                labelId="template-select-label"
+                value={selectedTemplate}
+                label="Plantilla de Producto/Kit"
+                onChange={handleTemplateChange}
               >
-                {submitting ? <CircularProgress size={24} /> : 'Reservar Stock para Ensamblado'}
-              </Button>
-            </Grid>
-
-            {/* Columna de BOM */}
-            <Grid item xs={12} md={8}>
-              <Typography variant="h6" gutterBottom>Paso 2: Materiales Requeridos</Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Componente (SKU)</TableCell>
-                      <TableCell>Nombre</TableCell>
-                      <TableCell align="right">Cantidad Requerida</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {loadingBom ? (
-                      <TableRow><TableCell colSpan={3} align="center"><CircularProgress /></TableCell></TableRow>
-                    ) : bom.length > 0 ? (
-                      bom.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.Child.sku}</TableCell>
-                          <TableCell>{item.Child.name}</TableCell>
-                          <TableCell align="right">{item.quantity * Number(quantity)} {item.Child.uom.symbol}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow><TableCell colSpan={3} align="center">Seleccione una plantilla para ver los materiales.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Grid>
+                {templates.map((template) => (
+                  <MenuItem key={template.id} value={template.id}>
+                    {template.name} ({template.sku})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
-          
-          {/* Alertas */}
-          <Box sx={{ mt: 3 }}>
-            {error && <Alert severity="error">{error}</Alert>}
-            {success && <Alert severity="success">{success}</Alert>}
-          </Box>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Cantidad a Ensamblar"
+              type="number"
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              InputProps={{ inputProps: { min: 1 } }}
+            />
+          </Grid>
+        </Grid>
+
+        <Button type="submit" variant="contained" sx={{ mt: 3, mb: 2 }} disabled={submitting || !selectedTemplate}>
+          {submitting ? <CircularProgress size={24} /> : 'Reservar Stock y Ensamblar'}
+        </Button>
+      </Box>
+
+      {loadingBom && <CircularProgress sx={{ mt: 2 }} />}
+      {bom.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" gutterBottom>Lista de Materiales (BOM)</Typography>
+          <ReusableTable columns={bomColumns} data={bom} />
         </Box>
-      </Paper>
-    </Container>
+      )}
+    </Paper>
   );
 };
 

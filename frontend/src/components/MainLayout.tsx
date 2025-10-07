@@ -16,15 +16,17 @@ import Link from '@mui/material/Link';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import LogoutIcon from '@mui/icons-material/Logout'; // 1. Importar el icono de logout
 import { Outlet } from 'react-router-dom';
-import { mainListItems, secondaryListItems } from './listItems'; // Crearemos este archivo a continuación
+import { useAuth } from '../context/AuthContext'; // 2. Importar el hook de autenticación
+import { mainListItems, secondaryListItems } from './listItems';
 
 function Copyright(props: any) {
   return (
     <Typography variant="body2" color="text.secondary" align="center" {...props}>
       {'Copyright © '}
       <Link color="inherit" href="#">
-        OEMSPOT
+        OemStock
       </Link>{' '}
       {new Date().getFullYear()}
       {'.'}
@@ -89,6 +91,7 @@ function MainLayoutContent() {
   const toggleDrawer = () => {
     setOpen(!open);
   };
+  const { logout } = useAuth(); // 3. Obtener la función logout del contexto
 
   return (
     <ThemeProvider theme={mdTheme}>
@@ -117,12 +120,16 @@ function MainLayoutContent() {
               noWrap
               sx={{ flexGrow: 1 }}
             >
-              Dashboard
+              OemStock
             </Typography>
             <IconButton color="inherit">
               <Badge badgeContent={4} color="secondary">
                 <NotificationsIcon />
               </Badge>
+            </IconButton>
+            {/* 4. Añadir el botón de logout */}
+            <IconButton color="inherit" onClick={logout} title="Cerrar Sesión">
+              <LogoutIcon />
             </IconButton>
           </Toolbar>
         </AppBar>

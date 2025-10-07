@@ -1,8 +1,18 @@
-
 import React, { useState } from 'react';
-import { Avatar, Button, CssBaseline, TextField, FormControlLabel, Checkbox, Link, Grid, Box, Typography, Container, Alert } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useNavigate } from 'react-router-dom';
+import {
+  Avatar,
+  Button,
+  CssBaseline,
+  TextField,
+  Link,
+  Box,
+  Typography,
+  Container,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useAuth } from '../context/AuthContext';
 
 function Copyright(props: any) {
@@ -10,7 +20,7 @@ function Copyright(props: any) {
     <Typography variant="body2" color="text.secondary" align="center" {...props}>
       {'Copyright © '}
       <Link color="inherit" href="#">
-        OEMSPOT
+        OemStock
       </Link>{' '}
       {new Date().getFullYear()}
       {'.'}
@@ -18,23 +28,24 @@ function Copyright(props: any) {
   );
 }
 
-export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
+const LoginPage: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-    const data = new FormData(event.currentTarget);
-    const email = data.get('email') as string;
-    const password = data.get('password') as string;
-
+    setLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
-    } catch (err) {
-      setError('No se pudo iniciar sesión. Verifique sus credenciales.');
+      // La redirección se maneja dentro del AuthContext
+    } catch (err: any) {
+      setError(err.message || 'Error al iniciar sesión. Por favor, intente de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,10 +64,10 @@ export default function LoginPage() {
           <LockOutlinedIcon />
         </Avatar>
         <Typography component="h1" variant="h5">
-          Iniciar sesión
+          Iniciar Sesión
         </Typography>
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error}</Alert>}
+          {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
           <TextField
             margin="normal"
             required
@@ -66,6 +77,8 @@ export default function LoginPage() {
             name="email"
             autoComplete="email"
             autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <TextField
             margin="normal"
@@ -76,29 +89,17 @@ export default function LoginPage() {
             type="password"
             id="password"
             autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
-          <FormControlLabel
-            control={<Checkbox value="remember" color="primary" />}
-            label="Recordarme"
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Acceder
+          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : 'Iniciar Sesión'}
           </Button>
-          <Grid container>
-            <Grid item xs>
-              <Link href="#" variant="body2">
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </Grid>
-          </Grid>
         </Box>
       </Box>
       <Copyright sx={{ mt: 8, mb: 4 }} />
     </Container>
   );
-}
+};
+
+export default LoginPage;

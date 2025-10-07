@@ -5,8 +5,8 @@ import express, { Request, Response } from 'express';
 import * as auth from './auth';
 const db = require('../models');
 import { authenticateToken } from '../middleware/authMiddleware';
-import * as itemController from './controllers/itemController';
-import * as stockController from './controllers/stockController';
+import * as itemController from '../controllers/itemController';
+import * as stockController from '../controllers/stockController';
 
 const app = express();
 const port = process.env.PORT || 3001;

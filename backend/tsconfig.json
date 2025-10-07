@@ -11,6 +11,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "middleware/authMiddleware.ts"],
   "exclude": ["node_modules", "models", "migrations", "seeders"]
 }
