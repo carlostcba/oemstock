@@ -3,7 +3,11 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 const db = require('../models');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('FATAL_ERROR: JWT_SECRET no está definida en las variables de entorno.');
+}
 
 export const register = async (req: Request, res: Response) => {
   const { firstName, lastName, email, password } = req.body;

@@ -11,7 +11,7 @@ Este es el servidor backend para la aplicación OemStock. El objetivo es desarro
 - **Producto en Stock (Instancia):** Un producto final ensamblado y disponible en stock.
 - **Sitios:** Sucursales físicas donde se almacena el stock.
 - **Stock Disponible:** `Stock Físico (on_hand) - Stock Reservado (reserved)`.
-
+- **BOM (Bill of Materials):** Lista de materiales o "receta" que compone un Kit o Producto.
 ## 3. Arquitectura y Tecnologías
 - **Framework:** Node.js con Express y TypeScript.
 - **ORM:** Sequelize para la interacción con la base de datos.
@@ -19,7 +19,7 @@ Este es el servidor backend para la aplicación OemStock. El objetivo es desarro
 - **Autenticación:** Basada en JSON Web Tokens (JWT).
 - **Permisos (Anti-Hardcoding):** El sistema de roles y permisos será completamente dinámico y gestionado desde la base de datos.
 
-## 4. Configuración del Proyecto
+## 4. Configuración
 
 ### Prerrequisitos
 - Node.js (v18 o superior)
@@ -44,7 +44,7 @@ Este es el servidor backend para la aplicación OemStock. El objetivo es desarro
    npx sequelize-cli db:seed:all
    ```
 
-## 5. Cómo Iniciar el Servidor
+## 5. Desarrollo
 Para iniciar el servidor en modo de desarrollo con recarga automática, ejecute desde el directorio `backend`:
 ```bash
 npm start

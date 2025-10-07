@@ -1,15 +1,15 @@
 # OemStock - Frontend
 
 ## 1. Visión General y Objetivos
-Esta es la aplicación frontend para OemStock, un sistema de gestión de stock multisitio. La interfaz de usuario está diseñada para permitir a los operarios, supervisores y administradores interactuar con el sistema de forma intuitiva.
+Esta es la aplicación frontend para OemStock, un sistema de gestión de stock multisitio. La interfaz de usuario está diseñada para permitir a los operarios, supervisores y administradores interactuar con el sistema de forma intuitiva y eficiente.
 
 ## 2. Tecnologías Utilizadas
-- **Framework:** React con TypeScript.
-- **UI Kit:** Material-UI (MUI) para componentes de interfaz de usuario.
-- **Enrutamiento:** React Router para la navegación entre páginas.
+- **Framework:** React v18 con TypeScript.
+- **UI Kit:** Material-UI (MUI) v5.
+- **Enrutamiento:** React Router v6.
 - **Comunicación con Backend:** El servicio `api.ts` gestiona las llamadas a la API del backend.
 
-## 3. Configuración del Proyecto
+## 3. Configuración
 
 ### Prerrequisitos
 - Node.js (v18 o superior)
@@ -22,7 +22,7 @@ Esta es la aplicación frontend para OemStock, un sistema de gestión de stock m
    npm install
    ```
 
-## 4. Cómo Iniciar la Aplicación
+## 4. Desarrollo
 Para iniciar la aplicación en modo de desarrollo, ejecute desde el directorio `frontend`:
 ```bash
 npm start
