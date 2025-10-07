@@ -49,7 +49,18 @@ apiRouter.delete('/items/:id', itemController.deleteItem);
 // Obtener BOM de una plantilla
 apiRouter.get('/items/:id/bom', itemController.getBom);
 
-// --- Rutas de Stock y Ensamblado ---
+// --- Rutas de Stock ---
+// IMPORTANTE: Las rutas mas especificas deben ir ANTES que las genericas
+// Obtener stock por sitio (ANTES de /stock/:algo)
+apiRouter.get('/stock/by-site/:siteId', stockController.getStockBySite);
+
+// Ajustar stock manualmente (ANTES de /stock/:algo)
+apiRouter.post('/stock/adjust', stockController.adjustStock);
+
+// Obtener todo el stock (ruta generica)
+apiRouter.get('/stock', stockController.getAllStock);
+
+// --- Rutas de Ensamblado ---
 // Crear nueva instancia de ensamblado (reservar stock)
 apiRouter.post('/stock/assembly', stockController.createAssembly);
 

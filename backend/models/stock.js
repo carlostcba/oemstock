@@ -1,27 +1,45 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
+const { Model } = require('sequelize');
+
 module.exports = (sequelize, DataTypes) => {
   class Stock extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      Stock.belongsTo(models.Item, { foreignKey: 'itemId' });
-      Stock.belongsTo(models.Site, { foreignKey: 'siteId' });
+      // Asociacion con Item
+      Stock.belongsTo(models.Item, {
+        foreignKey: 'itemId',
+        as: 'Item'
+      });
+
+      // Asociacion con Site
+      Stock.belongsTo(models.Site, {
+        foreignKey: 'siteId',
+        as: 'Site'
+      });
     }
   }
+  
   Stock.init({
-    on_hand: DataTypes.INTEGER,
-    reserved: DataTypes.INTEGER,
-    itemId: DataTypes.INTEGER,
-    siteId: DataTypes.INTEGER
+    on_hand: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    reserved: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    itemId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    }
   }, {
     sequelize,
     modelName: 'Stock',
+    tableName: 'Stocks'
   });
+  
   return Stock;
 };

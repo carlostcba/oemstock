@@ -41,6 +41,7 @@ const CatalogPage: React.FC = () => {
   // Estados para items
   const [items, setItems] = useState<api.Item[]>([]);
   const [elements, setElements] = useState<api.Item[]>([]);
+  const [kits, setKits] = useState<api.Item[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -67,6 +68,7 @@ const CatalogPage: React.FC = () => {
   useEffect(() => {
     fetchItems();
     fetchElements();
+    fetchKits();
   }, []);
 
   const fetchItems = async () => {
@@ -87,6 +89,15 @@ const CatalogPage: React.FC = () => {
       setElements(data);
     } catch (err: any) {
       console.error('Error al cargar elementos:', err);
+    }
+  };
+
+  const fetchKits = async () => {
+    try {
+      const data = await api.getAllItems('KIT', true);
+      setKits(data);
+    } catch (err: any) {
+      console.error('Error al cargar kits:', err);
     }
   };
 
@@ -141,7 +152,17 @@ const CatalogPage: React.FC = () => {
   };
 
   const handleFormChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Si se cambia el tipo, limpiar el BOM
+      if (field === 'type') {
+        setBom([]);
+        setNewBomItem({ child_item_id: 0, quantity: 1 });
+      }
+      
+      return newData;
+    });
   };
 
   const handleAddBomItem = () => {
@@ -192,6 +213,7 @@ const CatalogPage: React.FC = () => {
 
       handleCloseDialog();
       fetchItems();
+      fetchKits(); // Recargar kits para que esten disponibles en productos
     } catch (err: any) {
       setError(err.message || 'Error al guardar el item');
     } finally {
@@ -229,6 +251,22 @@ const CatalogPage: React.FC = () => {
       PRODUCT: 'secondary'
     };
     return colors[type] || 'default';
+  };
+
+  // Obtener el listado de componentes disponibles segun el tipo
+  const getAvailableComponents = () => {
+    if (formData.type === 'KIT') {
+      return elements; // Los Kits solo pueden tener Elementos Base
+    } else if (formData.type === 'PRODUCT') {
+      return kits; // Los Productos solo pueden tener Kits
+    }
+    return [];
+  };
+
+  const getComponentName = (componentId: number) => {
+    const componentList = formData.type === 'KIT' ? elements : kits;
+    const component = componentList.find(c => c.id === componentId);
+    return component ? `${component.name} (${component.sku})` : `ID: ${componentId}`;
   };
 
   return (
@@ -395,6 +433,11 @@ const CatalogPage: React.FC = () => {
                   <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
                     Lista de Materiales (BOM)
                   </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {formData.type === 'KIT' 
+                      ? 'Selecciona los Elementos Base que componen este Kit'
+                      : 'Selecciona los Kits que componen este Producto'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={12} md={8}>
                   <FormControl fullWidth>
@@ -407,9 +450,9 @@ const CatalogPage: React.FC = () => {
                       }
                     >
                       <MenuItem value={0}>Seleccionar...</MenuItem>
-                      {elements.map((el) => (
-                        <MenuItem key={el.id} value={el.id}>
-                          {el.name} ({el.sku})
+                      {getAvailableComponents().map((component) => (
+                        <MenuItem key={component.id} value={component.id}>
+                          {component.name} ({component.sku})
                         </MenuItem>
                       ))}
                     </Select>
@@ -433,6 +476,7 @@ const CatalogPage: React.FC = () => {
                     fullWidth
                     sx={{ height: '56px' }}
                     onClick={handleAddBomItem}
+                    disabled={newBomItem.child_item_id === 0}
                   >
                     <AddIcon />
                   </Button>
@@ -445,19 +489,16 @@ const CatalogPage: React.FC = () => {
                       <Typography variant="subtitle2" gutterBottom>
                         Componentes:
                       </Typography>
-                      {bom.map((item, index) => {
-                        const element = elements.find(el => el.id === item.child_item_id);
-                        return (
-                          <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography>
-                              {element?.name || `ID: ${item.child_item_id}`} - Cantidad: {item.quantity}
-                            </Typography>
-                            <IconButton size="small" color="error" onClick={() => handleRemoveBomItem(index)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        );
-                      })}
+                      {bom.map((item, index) => (
+                        <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography>
+                            {getComponentName(item.child_item_id)} - Cantidad: {item.quantity}
+                          </Typography>
+                          <IconButton size="small" color="error" onClick={() => handleRemoveBomItem(index)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))}
                     </Paper>
                   </Grid>
                 )}
