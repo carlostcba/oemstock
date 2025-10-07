@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
+const BASE_URL = 'http://localhost:3001/api';
 
 // --- Tipos de Datos ---
 export interface Uom {
@@ -13,9 +13,9 @@ export interface Item {
   name: string;
   type: 'ELEMENT' | 'KIT' | 'PRODUCT';
   active: boolean;
-  notes: string;
+  notes: string | null;
   uom_id: number;
-  uom: Uom;
+  uom?: Uom;
 }
 
 export interface BomItem {
@@ -24,6 +24,21 @@ export interface BomItem {
   child_item_id: number;
   quantity: number;
   Child: Item;
+}
+
+export interface BomInput {
+  child_item_id: number;
+  quantity: number;
+}
+
+export interface ItemInput {
+  sku: string;
+  name: string;
+  type: 'ELEMENT' | 'KIT' | 'PRODUCT';
+  uom_id: number;
+  active?: boolean;
+  notes?: string;
+  bom?: BomInput[];
 }
 
 export interface AssemblyPayload {
@@ -107,8 +122,47 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 // --- Endpoints de Items ---
 
+export const getAllItems = async (type?: string, active?: boolean): Promise<Item[]> => {
+  const params = new URLSearchParams();
+  if (type) params.append('type', type);
+  if (active !== undefined) params.append('active', active.toString());
+  
+  const queryString = params.toString();
+  const url = queryString ? `${BASE_URL}/items?${queryString}` : `${BASE_URL}/items`;
+  
+  return apiFetch<Item[]>(url);
+};
+
+export const getElements = async (): Promise<Item[]> => {
+  return apiFetch<Item[]>(`${BASE_URL}/items/elements`);
+};
+
 export const getTemplates = async (): Promise<Item[]> => {
   return apiFetch<Item[]>(`${BASE_URL}/items/templates`);
+};
+
+export const getItemById = async (id: number): Promise<Item> => {
+  return apiFetch<Item>(`${BASE_URL}/items/${id}`);
+};
+
+export const createItem = async (item: ItemInput): Promise<{ message: string; item: Item }> => {
+  return apiFetch<{ message: string; item: Item }>(`${BASE_URL}/items`, {
+    method: 'POST',
+    body: JSON.stringify(item),
+  });
+};
+
+export const updateItem = async (id: number, item: Partial<ItemInput>): Promise<{ message: string; item: Item }> => {
+  return apiFetch<{ message: string; item: Item }>(`${BASE_URL}/items/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(item),
+  });
+};
+
+export const deleteItem = async (id: number): Promise<{ message: string }> => {
+  return apiFetch<{ message: string }>(`${BASE_URL}/items/${id}`, {
+    method: 'DELETE',
+  });
 };
 
 export const getBom = async (templateId: number): Promise<BomItem[]> => {
@@ -154,7 +208,7 @@ export const cancelAssembly = async (id: number): Promise<{ message: string; ass
 // --- Endpoints de Autenticacion ---
 
 export const login = async (email: string, password: string): Promise<{ token: string }> => {
-  return apiFetch<{ token: string }>(`${BASE_URL.replace('/api', '')}/auth/login`, {
+  return apiFetch<{ token: string }>('http://localhost:3001/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });

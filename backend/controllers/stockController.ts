@@ -412,3 +412,160 @@ export const cancelAssembly = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error interno al cancelar el ensamblado' });
     }
 };
+
+/**
+ * GET /api/stock - Obtener todo el stock
+ */
+export const getAllStock = async (req: Request, res: Response) => {
+    try {
+        const { siteId, itemId } = req.query;
+        const where: any = {};
+
+        if (siteId) {
+            where.siteId = parseInt(siteId as string, 10);
+        }
+
+        if (itemId) {
+            where.itemId = parseInt(itemId as string, 10);
+        }
+
+        const stock = await db.Stock.findAll({
+            where,
+            include: [
+                {
+                    model: db.Item,
+                    as: 'Item',
+                    attributes: ['id', 'sku', 'name', 'type'],
+                    include: [{ model: db.Uom, as: 'uom' }]
+                },
+                {
+                    model: db.Site,
+                    as: 'Site',
+                    attributes: ['id', 'name']
+                }
+            ],
+            order: [['itemId', 'ASC'], ['siteId', 'ASC']]
+        });
+
+        res.json(stock);
+    } catch (error) {
+        console.error('Error al obtener stock:', error);
+        res.status(500).json({ message: 'Error al obtener el stock' });
+    }
+};
+
+/**
+ * POST /api/stock/adjust - Ajustar stock manualmente (solo admin)
+ */
+export const adjustStock = async (req: Request, res: Response) => {
+    const { itemId, siteId, quantity, adjustment_type, notes } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
+    if (!itemId || !siteId || quantity === undefined) {
+        return res.status(400).json({ 
+            message: 'itemId, siteId y quantity son requeridos' 
+        });
+    }
+
+    if (!['ENTRADA', 'SALIDA', 'AJUSTE'].includes(adjustment_type)) {
+        return res.status(400).json({ 
+            message: 'adjustment_type debe ser ENTRADA, SALIDA o AJUSTE' 
+        });
+    }
+
+    const transaction = await db.sequelize.transaction();
+
+    try {
+        // Buscar o crear el registro de stock
+        let stock = await db.Stock.findOne({
+            where: { itemId, siteId },
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        });
+
+        if (stock) {
+            // Actualizar stock existente
+            if (adjustment_type === 'ENTRADA' || adjustment_type === 'AJUSTE') {
+                stock.on_hand += quantity;
+            } else if (adjustment_type === 'SALIDA') {
+                if (stock.on_hand < quantity) {
+                    await transaction.rollback();
+                    return res.status(400).json({ 
+                        message: 'No hay suficiente stock para realizar la salida' 
+                    });
+                }
+                stock.on_hand -= quantity;
+            }
+            await stock.save({ transaction });
+        } else {
+            // Crear nuevo registro de stock
+            if (adjustment_type === 'SALIDA') {
+                await transaction.rollback();
+                return res.status(400).json({ 
+                    message: 'No existe stock para realizar una salida' 
+                });
+            }
+
+            stock = await db.Stock.create({
+                itemId,
+                siteId,
+                on_hand: quantity,
+                reserved: 0
+            }, { transaction });
+        }
+
+        // TODO: Registrar en auditoria el ajuste de stock
+        // await db.AuditLog.create({
+        //     user_id: userId,
+        //     action: 'STOCK_ADJUSTMENT',
+        //     resource: 'stock',
+        //     details: JSON.stringify({ itemId, siteId, quantity, adjustment_type, notes })
+        // }, { transaction });
+
+        await transaction.commit();
+
+        res.json({ 
+            message: 'Stock ajustado exitosamente',
+            stock 
+        });
+    } catch (error) {
+        await transaction.rollback();
+        console.error('Error al ajustar stock:', error);
+        res.status(500).json({ message: 'Error al ajustar el stock' });
+    }
+};
+
+/**
+ * GET /api/stock/by-site/:siteId - Obtener stock de un sitio especifico
+ */
+export const getStockBySite = async (req: Request, res: Response) => {
+    try {
+        const siteId = parseInt(req.params.siteId, 10);
+
+        if (isNaN(siteId)) {
+            return res.status(400).json({ message: 'ID de sitio invalido' });
+        }
+
+        const stock = await db.Stock.findAll({
+            where: { siteId },
+            include: [
+                {
+                    model: db.Item,
+                    as: 'Item',
+                    attributes: ['id', 'sku', 'name', 'type'],
+                    include: [{ model: db.Uom, as: 'uom' }]
+                }
+            ],
+            order: [['itemId', 'ASC']]
+        });
+
+        res.json(stock);
+    } catch (error) {
+        console.error('Error al obtener stock del sitio:', error);
+        res.status(500).json({ message: 'Error al obtener el stock del sitio' });
+    }
+};

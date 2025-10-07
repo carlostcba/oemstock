@@ -43,6 +43,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     navigate('/login');
   };
 
+  // No renderizar children hasta que se complete la verificacion inicial
+  if (loading) {
+    return null; // O un spinner de carga
+  }
+
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout, loading }}>
       {children}

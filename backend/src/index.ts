@@ -25,7 +25,28 @@ const apiRouter = express.Router();
 apiRouter.use(authenticateToken);
 
 // --- Rutas de Items ---
+// Obtener todos los items (con filtros opcionales)
+apiRouter.get('/items', itemController.getAllItems);
+
+// Obtener solo elementos base (para usar en BOM)
+apiRouter.get('/items/elements', itemController.getElements);
+
+// Obtener plantillas (Kits y Productos)
 apiRouter.get('/items/templates', itemController.getTemplates);
+
+// Crear nuevo item
+apiRouter.post('/items', itemController.createItem);
+
+// Obtener item por ID
+apiRouter.get('/items/:id', itemController.getItemById);
+
+// Actualizar item
+apiRouter.put('/items/:id', itemController.updateItem);
+
+// Eliminar item (soft delete)
+apiRouter.delete('/items/:id', itemController.deleteItem);
+
+// Obtener BOM de una plantilla
 apiRouter.get('/items/:id/bom', itemController.getBom);
 
 // --- Rutas de Stock y Ensamblado ---

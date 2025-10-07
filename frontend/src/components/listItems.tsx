@@ -8,6 +8,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BuildIcon from '@mui/icons-material/Build';
 import CategoryIcon from '@mui/icons-material/Category';
+import InventoryIcon from '@mui/icons-material/Inventory';
 
 export const mainListItems = (
   <React.Fragment>
@@ -16,6 +17,12 @@ export const mainListItems = (
         <DashboardIcon />
       </ListItemIcon>
       <ListItemText primary="Dashboard" />
+    </ListItemButton>
+    <ListItemButton component={RouterLink} to="/stock">
+      <ListItemIcon>
+        <InventoryIcon />
+      </ListItemIcon>
+      <ListItemText primary="Stock" />
     </ListItemButton>
     <ListItemButton component={RouterLink} to="/assembly">
       <ListItemIcon>
@@ -27,7 +34,7 @@ export const mainListItems = (
       <ListItemIcon>
         <CategoryIcon />
       </ListItemIcon>
-      <ListItemText primary="Catálogo" />
+      <ListItemText primary="Catalogo" />
     </ListItemButton>
   </React.Fragment>
 );
