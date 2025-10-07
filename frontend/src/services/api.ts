@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
 
 // --- Tipos de Datos ---
 export interface Uom {
@@ -30,23 +30,48 @@ export interface AssemblyPayload {
   templateId: number;
   quantity: number;
   siteId: number;
+  notes?: string;
 }
 
-// --- Lógica de API ---
+export interface AssemblyInstance {
+  id: number;
+  template_id: number;
+  site_id: number;
+  quantity: number;
+  status: 'RESERVADO' | 'ENSAMBLADO' | 'CANCELADO';
+  created_by: number;
+  completed_at: string | null;
+  completed_by: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  Template?: Item;
+  Site?: {
+    id: number;
+    name: string;
+  };
+  Creator?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  Completer?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+// --- Logica de API ---
 
 let authToken: string | null = null;
 
-/**
- * Establece el token de autenticación para todas las futuras llamadas a la API.
- * @param token - El token JWT.
- */
 export const setAuthToken = (token: string | null) => {
   authToken = token;
 };
 
-/**
- * Centraliza el manejo de errores de la API.
- */
 async function handleApiError(response: Response): Promise<void> {
   try {
     const errorData = await response.json();
@@ -59,9 +84,6 @@ async function handleApiError(response: Response): Promise<void> {
   }
 }
 
-/**
- * Realiza una petición fetch y maneja la respuesta y la autenticación.
- */
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
@@ -76,7 +98,6 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
     await handleApiError(response);
   }
 
-  // Si la respuesta es 204 No Content, no hay cuerpo que parsear
   if (response.status === 204) {
     return {} as T;
   }
@@ -84,35 +105,56 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-/**
- * Obtiene todas las plantillas (items de tipo KIT o PRODUCT)
- */
+// --- Endpoints de Items ---
+
 export const getTemplates = async (): Promise<Item[]> => {
   return apiFetch<Item[]>(`${BASE_URL}/items/templates`);
 };
 
-/**
- * Obtiene la lista de materiales (BOM) para una plantilla específica
- */
 export const getBom = async (templateId: number): Promise<BomItem[]> => {
   return apiFetch<BomItem[]>(`${BASE_URL}/items/${templateId}/bom`);
 };
 
-/**
- * Envía una nueva solicitud de ensamblado para reservar stock
- */
-export const createAssembly = async (payload: AssemblyPayload): Promise<any> => {
-  return apiFetch<any>(`${BASE_URL}/stock/assembly`, {
+// --- Endpoints de Ensamblado ---
+
+export const createAssembly = async (payload: AssemblyPayload): Promise<{ message: string; assemblyInstance: AssemblyInstance }> => {
+  return apiFetch<{ message: string; assemblyInstance: AssemblyInstance }>(`${BASE_URL}/stock/assembly`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 };
 
-/**
- * Inicia sesión de un usuario.
- */
+export const getAssemblies = async (status?: string, siteId?: number): Promise<AssemblyInstance[]> => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (siteId) params.append('siteId', siteId.toString());
+  
+  const queryString = params.toString();
+  const url = queryString ? `${BASE_URL}/stock/assemblies?${queryString}` : `${BASE_URL}/stock/assemblies`;
+  
+  return apiFetch<AssemblyInstance[]>(url);
+};
+
+export const getAssemblyById = async (id: number): Promise<AssemblyInstance> => {
+  return apiFetch<AssemblyInstance>(`${BASE_URL}/stock/assemblies/${id}`);
+};
+
+export const completeAssembly = async (id: number): Promise<{ message: string; assembly: AssemblyInstance }> => {
+  return apiFetch<{ message: string; assembly: AssemblyInstance }>(`${BASE_URL}/stock/assemblies/${id}/complete`, {
+    method: 'POST',
+  });
+};
+
+export const cancelAssembly = async (id: number): Promise<{ message: string; assembly: AssemblyInstance }> => {
+  return apiFetch<{ message: string; assembly: AssemblyInstance }>(`${BASE_URL}/stock/assemblies/${id}/cancel`, {
+    method: 'POST',
+  });
+};
+
+// --- Endpoints de Autenticacion ---
+
 export const login = async (email: string, password: string): Promise<{ token: string }> => {
-  return apiFetch<{ token: string }>(`${BASE_URL}/auth/login`, {
+  return apiFetch<{ token: string }>(`${BASE_URL.replace('/api', '')}/auth/login`, {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
