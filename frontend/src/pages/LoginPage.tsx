@@ -1,32 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Avatar,
-  Button,
-  CssBaseline,
-  TextField,
-  Link,
-  Box,
-  Typography,
   Container,
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Paper,
   Alert,
-  CircularProgress,
+  CircularProgress
 } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useAuth } from '../context/AuthContext';
-
-function Copyright(props: any) {
-  return (
-    <Typography variant="body2" color="text.secondary" align="center" {...props}>
-      {'Copyright © '}
-      <Link color="inherit" href="#">
-        OemStock
-      </Link>{' '}
-      {new Date().getFullYear()}
-      {'.'}
-    </Typography>
-  );
-}
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -35,15 +18,15 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
     setLoading(true);
+
     try {
       await login(email, password);
-      // La redirección se maneja dentro del AuthContext
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión. Por favor, intente de nuevo.');
+      setError(err.message || 'Error al iniciar sesion. Verifica tus credenciales.');
     } finally {
       setLoading(false);
     }
@@ -51,7 +34,6 @@ const LoginPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <CssBaseline />
       <Box
         sx={{
           marginTop: 8,
@@ -60,44 +42,74 @@ const LoginPage: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-          <LockOutlinedIcon />
-        </Avatar>
-        <Typography component="h1" variant="h5">
-          Iniciar Sesión
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Correo Electrónico"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Contraseña"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : 'Iniciar Sesión'}
-          </Button>
-        </Box>
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h5" align="center" gutterBottom>
+            OemStock
+          </Typography>
+          <Typography variant="body2" align="center" color="text.secondary" gutterBottom>
+            Sistema de Gestion de Inventario
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Correo Electronico"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Contrasena"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Iniciar Sesion'}
+            </Button>
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary" align="center" display="block">
+              Usuarios de prueba:
+            </Typography>
+            <Typography variant="caption" color="text.secondary" align="center" display="block">
+              operario@test.com / password123
+            </Typography>
+            <Typography variant="caption" color="text.secondary" align="center" display="block">
+              supervisor@test.com / password123
+            </Typography>
+            <Typography variant="caption" color="text.secondary" align="center" display="block">
+              admin@test.com / password123
+            </Typography>
+          </Box>
+        </Paper>
       </Box>
-      <Copyright sx={{ mt: 8, mb: 4 }} />
     </Container>
   );
 };

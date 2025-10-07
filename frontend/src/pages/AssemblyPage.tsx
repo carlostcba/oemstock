@@ -65,6 +65,7 @@ const AssemblyPage: React.FC = () => {
   // Cargar instancias al montar y cuando cambie el filtro
   useEffect(() => {
     fetchAssemblies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus]);
 
   const fetchTemplates = async () => {

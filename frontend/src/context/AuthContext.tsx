@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/api';
 
@@ -6,57 +6,50 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    // Comprobar si ya existe un token al cargar la app
-    return !!localStorage.getItem('authToken');
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Si el estado de autenticación cambia, actualizamos el token en la API
+    // Verificar si hay un token guardado al cargar la aplicacion
     const token = localStorage.getItem('authToken');
-    api.setAuthToken(token);
-  }, [isAuthenticated]);
+    if (token) {
+      api.setAuthToken(token);
+      setIsAuthenticated(true);
+    }
+    setLoading(false);
+  }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await api.login(email, password);
-      if (response.token) {
-        localStorage.setItem('authToken', response.token);
-        setIsAuthenticated(true);
-        navigate('/dashboard'); // Redirigir al dashboard tras un login exitoso
-      } else {
-        throw new Error('No se recibió token en la respuesta.');
-      }
-    } catch (error) {
-      // El error ya viene formateado desde api.ts, solo lo relanzamos
-      console.error('Error en el login:', error);
-      throw error;
-    }
+    const response = await api.login(email, password);
+    const { token } = response;
+    
+    localStorage.setItem('authToken', token);
+    api.setAuthToken(token);
+    setIsAuthenticated(true);
+    navigate('/dashboard');
   };
 
   const logout = () => {
     localStorage.removeItem('authToken');
+    api.setAuthToken(null);
     setIsAuthenticated(false);
-    navigate('/login'); // Redirigir a la página de login
+    navigate('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-/**
- * Hook personalizado para acceder al contexto de autenticación.
- * Asegura que se use dentro de un AuthProvider.
- */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

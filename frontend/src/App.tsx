@@ -18,8 +18,8 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route 
@@ -30,15 +30,14 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              {/* La ruta índice ahora está al principio para mayor claridad. */}
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="catalog" element={<CatalogPage />} />
               <Route path="assembly" element={<AssemblyPage />} />
             </Route>
           </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
