@@ -1,30 +1,37 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-// Extender la interfaz Request de Express para incluir la propiedad 'user'
-declare global {
-  namespace Express {
-    interface Request {
-      user?: string | JwtPayload;
-    }
-  }
+interface JwtPayload {
+  id: number;
+  email: string;
 }
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Formato: Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  if (token == null) {
-    return res.status(401).json({ message: 'Acceso denegado. No se proporcionó token.' }); // Unauthorized
+  if (!token) {
+    return res.status(401).json({ message: 'Token no proporcionado' });
   }
 
-  jwt.verify(token, JWT_SECRET!, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: 'Token inválido o expirado.' }); // Forbidden
-    }
-    req.user = user;
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error('JWT_SECRET no esta configurado en las variables de entorno');
+    return res.status(500).json({ message: 'Error de configuracion del servidor' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+    
+    // Agregar el usuario al objeto request para usarlo en los controladores
+    (req as any).user = {
+      id: decoded.id,
+      email: decoded.email
+    };
+    
     next();
-  });
+  } catch (error) {
+    console.error('Error al verificar token:', error);
+    return res.status(403).json({ message: 'Token invalido o expirado' });
+  }
 };
