@@ -1,6 +1,9 @@
 const BASE_URL = 'http://localhost:3001/api';
 
 // --- Tipos de Datos ---
+
+export type AssemblyStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'TO_VERIFY' | 'DONE' | 'CANCELADO';
+
 export interface Uom {
   id: number;
   name: string;
@@ -53,13 +56,19 @@ export interface AssemblyInstance {
   template_id: number;
   site_id: number;
   quantity: number;
-  status: 'RESERVADO' | 'ENSAMBLADO' | 'CANCELADO';
+  status: AssemblyStatus;
   created_by: number;
   completed_at: string | null;
   completed_by: number | null;
+  verified_by: number | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  backlog_at: string | null;
+  todo_at: string | null;
+  in_progress_at: string | null;
+  to_verify_at: string | null;
+  done_at: string | null;
   Template?: Item;
   Site?: {
     id: number;
@@ -72,6 +81,12 @@ export interface AssemblyInstance {
     email: string;
   };
   Completer?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  Verifier?: {
     id: number;
     firstName: string;
     lastName: string;

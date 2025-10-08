@@ -76,6 +76,9 @@ apiRouter.post('/stock/assemblies/:id/complete', stockController.completeAssembl
 // Cancelar un ensamblado
 apiRouter.post('/stock/assemblies/:id/cancel', stockController.cancelAssembly);
 
+// Cambiar estado de un ensamblado
+apiRouter.post('/stock/assemblies/:id/change-status', stockController.changeAssemblyStatus);
+
 // Montar el router de la API
 app.use('/api', apiRouter);
 

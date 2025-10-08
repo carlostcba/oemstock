@@ -102,7 +102,8 @@ export const createAssembly = async (req: Request, res: Response) => {
             template_id: templateId,
             site_id: siteId,
             quantity: quantity,
-            status: 'RESERVADO',
+            status: 'BACKLOG',
+            backlog_at: new Date(),
             created_by: userId,
             notes: notes || null
         }, { transaction });
@@ -567,5 +568,214 @@ export const getStockBySite = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error al obtener stock del sitio:', error);
         res.status(500).json({ message: 'Error al obtener el stock del sitio' });
+    }
+};
+
+/**
+ * POST /api/stock/assemblies/:id/change-status - Cambiar estado de una instancia
+ */
+export const changeAssemblyStatus = async (req: Request, res: Response) => {
+    const assemblyId = parseInt(req.params.id, 10);
+    const { newStatus, notes } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
+    if (isNaN(assemblyId)) {
+        return res.status(400).json({ message: 'ID invalido' });
+    }
+
+    const validStatuses = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'TO_VERIFY', 'DONE', 'CANCELADO'];
+    if (!validStatuses.includes(newStatus)) {
+        return res.status(400).json({ message: 'Estado invalido' });
+    }
+
+    const transaction = await db.sequelize.transaction();
+
+    try {
+        const assembly = await db.AssemblyInstance.findByPk(assemblyId, { transaction });
+
+        if (!assembly) {
+            await transaction.rollback();
+            return res.status(404).json({ message: 'Instancia de ensamblado no encontrada' });
+        }
+
+        const currentStatus = assembly.status;
+
+        // Validaciones de transiciones de estado
+        const validTransitions: { [key: string]: string[] } = {
+            'BACKLOG': ['TODO', 'CANCELADO'],
+            'TODO': ['IN_PROGRESS', 'BACKLOG', 'CANCELADO'],
+            'IN_PROGRESS': ['TO_VERIFY', 'TODO', 'CANCELADO'],
+            'TO_VERIFY': ['DONE', 'IN_PROGRESS', 'CANCELADO'],
+            'DONE': [], // No se puede cambiar desde DONE
+            'CANCELADO': ['BACKLOG'] // Permitir reactivar
+        };
+
+        if (!validTransitions[currentStatus].includes(newStatus)) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+                message: `No se puede cambiar de ${currentStatus} a ${newStatus}` 
+            });
+        }
+
+        // Actualizar el estado
+        assembly.status = newStatus;
+        const now = new Date();
+
+        // Registrar timestamp segun el estado
+        switch (newStatus) {
+            case 'BACKLOG':
+                assembly.backlog_at = now;
+                break;
+            case 'TODO':
+                assembly.todo_at = now;
+                break;
+            case 'IN_PROGRESS':
+                assembly.in_progress_at = now;
+                break;
+            case 'TO_VERIFY':
+                assembly.to_verify_at = now;
+                assembly.completed_by = userId;
+                assembly.completed_at = now;
+                break;
+            case 'DONE':
+                assembly.done_at = now;
+                assembly.verified_by = userId;
+                
+                // Al marcar como DONE, agregar al stock
+                const bomItems = await db.ItemBom.findAll({
+                    where: { parent_item_id: assembly.template_id },
+                    transaction
+                });
+
+                // Consumir componentes del stock
+                for (const bomItem of bomItems) {
+                    const requiredQuantity = bomItem.quantity * assembly.quantity;
+
+                    const childStock = await db.Stock.findOne({
+                        where: { 
+                            itemId: bomItem.child_item_id, 
+                            siteId: assembly.site_id 
+                        },
+                        transaction,
+                        lock: transaction.LOCK.UPDATE
+                    });
+
+                    if (childStock) {
+                        childStock.on_hand -= requiredQuantity;
+                        childStock.reserved -= requiredQuantity;
+
+                        if (childStock.on_hand < 0 || childStock.reserved < 0) {
+                            await transaction.rollback();
+                            return res.status(500).json({ 
+                                message: 'Error: Estado de stock inconsistente' 
+                            });
+                        }
+
+                        await childStock.save({ transaction });
+                    }
+                }
+
+                // Agregar el item ensamblado al stock
+                let assembledStock = await db.Stock.findOne({
+                    where: { 
+                        itemId: assembly.template_id, 
+                        siteId: assembly.site_id 
+                    },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+
+                if (assembledStock) {
+                    assembledStock.on_hand += assembly.quantity;
+                    await assembledStock.save({ transaction });
+                } else {
+                    await db.Stock.create({
+                        itemId: assembly.template_id,
+                        siteId: assembly.site_id,
+                        on_hand: assembly.quantity,
+                        reserved: 0
+                    }, { transaction });
+                }
+                break;
+            case 'CANCELADO':
+                // Liberar stock reservado si se cancela
+                const cancelBomItems = await db.ItemBom.findAll({
+                    where: { parent_item_id: assembly.template_id },
+                    transaction
+                });
+
+                for (const bomItem of cancelBomItems) {
+                    const requiredQuantity = bomItem.quantity * assembly.quantity;
+
+                    const childStock = await db.Stock.findOne({
+                        where: { 
+                            itemId: bomItem.child_item_id, 
+                            siteId: assembly.site_id 
+                        },
+                        transaction,
+                        lock: transaction.LOCK.UPDATE
+                    });
+
+                    if (childStock) {
+                        childStock.reserved -= requiredQuantity;
+                        if (childStock.reserved < 0) {
+                            childStock.reserved = 0;
+                        }
+                        await childStock.save({ transaction });
+                    }
+                }
+                break;
+        }
+
+        if (notes) {
+            assembly.notes = notes;
+        }
+
+        await assembly.save({ transaction });
+        await transaction.commit();
+
+        // Recargar con relaciones
+        const updatedAssembly = await db.AssemblyInstance.findByPk(assemblyId, {
+            include: [
+                {
+                    model: db.Item,
+                    as: 'Template',
+                    attributes: ['id', 'sku', 'name', 'type']
+                },
+                {
+                    model: db.Site,
+                    as: 'Site',
+                    attributes: ['id', 'name']
+                },
+                {
+                    model: db.User,
+                    as: 'Creator',
+                    attributes: ['id', 'firstName', 'lastName', 'email']
+                },
+                {
+                    model: db.User,
+                    as: 'Completer',
+                    attributes: ['id', 'firstName', 'lastName', 'email']
+                },
+                {
+                    model: db.User,
+                    as: 'Verifier',
+                    attributes: ['id', 'firstName', 'lastName', 'email']
+                }
+            ]
+        });
+
+        res.json({ 
+            message: `Estado actualizado a ${newStatus}`,
+            assembly: updatedAssembly 
+        });
+    } catch (error) {
+        await transaction.rollback();
+        console.error('Error al cambiar estado:', error);
+        res.status(500).json({ message: 'Error interno al cambiar el estado' });
     }
 };
