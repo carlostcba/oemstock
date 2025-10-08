@@ -572,11 +572,11 @@ export const getStockBySite = async (req: Request, res: Response) => {
 };
 
 /**
- * POST /api/stock/assemblies/:id/change-status - Cambiar estado de una instancia
+ * PATCH /api/stock/assemblies/:id/status - Cambiar estado de un ensamblado (flujo kanban)
  */
 export const changeAssemblyStatus = async (req: Request, res: Response) => {
     const assemblyId = parseInt(req.params.id, 10);
-    const { newStatus, notes } = req.body;
+    const { status: newStatus, notes } = req.body;
     const userId = (req as any).user?.id;
 
     if (!userId) {
@@ -736,9 +736,12 @@ export const changeAssemblyStatus = async (req: Request, res: Response) => {
         }
 
         await assembly.save({ transaction });
+        
+        // IMPORTANTE: Hacer commit ANTES de recargar los datos
         await transaction.commit();
 
-        // Recargar con relaciones
+        // Ahora que la transaccion ya se completo exitosamente,
+        // recargamos los datos FUERA de la transaccion
         const updatedAssembly = await db.AssemblyInstance.findByPk(assemblyId, {
             include: [
                 {
@@ -774,7 +777,10 @@ export const changeAssemblyStatus = async (req: Request, res: Response) => {
             assembly: updatedAssembly 
         });
     } catch (error) {
-        await transaction.rollback();
+        // Solo hacemos rollback si la transaccion NO fue commiteada
+        if (!transaction.finished) {
+            await transaction.rollback();
+        }
         console.error('Error al cambiar estado:', error);
         res.status(500).json({ message: 'Error interno al cambiar el estado' });
     }
