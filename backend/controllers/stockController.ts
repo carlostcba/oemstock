@@ -574,6 +574,8 @@ export const getStockBySite = async (req: Request, res: Response) => {
 /**
  * PATCH /api/stock/assemblies/:id/status - Cambiar estado de un ensamblado (flujo kanban)
  */
+// backend/controllers/stockController.ts
+
 export const changeAssemblyStatus = async (req: Request, res: Response) => {
     const assemblyId = parseInt(req.params.id, 10);
     const { status: newStatus, notes } = req.body;
@@ -762,12 +764,14 @@ export const changeAssemblyStatus = async (req: Request, res: Response) => {
                 {
                     model: db.User,
                     as: 'Completer',
-                    attributes: ['id', 'firstName', 'lastName', 'email']
+                    attributes: ['id', 'firstName', 'lastName', 'email'],
+                    required: false // IMPORTANTE: hacer opcional
                 },
                 {
                     model: db.User,
                     as: 'Verifier',
-                    attributes: ['id', 'firstName', 'lastName', 'email']
+                    attributes: ['id', 'firstName', 'lastName', 'email'],
+                    required: false // IMPORTANTE: hacer opcional
                 }
             ]
         });

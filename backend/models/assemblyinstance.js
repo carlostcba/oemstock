@@ -1,3 +1,5 @@
+// backend/models/assemblyinstance.js
+
 'use strict';
 const { Model } = require('sequelize');
 
@@ -27,6 +29,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'completed_by',
         as: 'Completer'
       });
+
+      // Relacion con el usuario que verifico el ensamblado
+      AssemblyInstance.belongsTo(models.User, {
+        foreignKey: 'verified_by',
+        as: 'Verifier'
+      });
     }
   }
 
@@ -48,19 +56,44 @@ module.exports = (sequelize, DataTypes) => {
         }
       },
       status: {
-        type: DataTypes.ENUM('RESERVADO', 'ENSAMBLADO', 'CANCELADO'),
+        type: DataTypes.ENUM('BACKLOG', 'TODO', 'IN_PROGRESS', 'TO_VERIFY', 'DONE', 'CANCELADO'),
         allowNull: false,
-        defaultValue: 'RESERVADO'
+        defaultValue: 'BACKLOG'
       },
       created_by: {
         type: DataTypes.INTEGER,
         allowNull: false
+      },
+      // Timestamps para cada estado del flujo Kanban
+      backlog_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      todo_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      in_progress_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      to_verify_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      done_at: {
+        type: DataTypes.DATE,
+        allowNull: true
       },
       completed_at: {
         type: DataTypes.DATE,
         allowNull: true
       },
       completed_by: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+      },
+      verified_by: {
         type: DataTypes.INTEGER,
         allowNull: true
       },

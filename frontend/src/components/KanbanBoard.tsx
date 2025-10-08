@@ -1,3 +1,5 @@
+// frontend/src/components/KanbanBoard.tsx
+
 import React, { useState } from 'react';
 import {
   Box,
@@ -82,7 +84,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ assemblies, userRole, onRefre
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({
-          status: newStatus,  // ✅ Cambiado de "newStatus" a "status"
+          status: newStatus,  // ✅ Corregido
           notes: notes || undefined
         })
       });
@@ -136,18 +138,46 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ assemblies, userRole, onRefre
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
-      <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+      {/* Contenedor responsive para el Kanban */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          gap: 2, 
+          overflowX: 'auto', 
+          pb: 2,
+          // Asegurar que las columnas se ajusten al ancho disponible
+          minHeight: '70vh'
+        }}
+      >
         {columns.map(column => (
           <Paper
             key={column.id}
             sx={{
-              minWidth: 300,
-              maxWidth: 300,
+              // Calcular ancho dinamico basado en numero de columnas
+              minWidth: {
+                xs: '280px',           // Movil
+                sm: '300px',           // Tablet
+                md: `calc((100% - ${(columns.length - 1) * 16}px) / ${columns.length})`,  // Desktop: distribuir equitativamente
+                lg: `calc((100% - ${(columns.length - 1) * 16}px) / ${columns.length})`,
+                xl: `calc((100% - ${(columns.length - 1) * 16}px) / ${columns.length})`
+              },
+              maxWidth: {
+                md: `calc((100% - ${(columns.length - 1) * 16}px) / ${columns.length})`,
+                lg: `calc((100% - ${(columns.length - 1) * 16}px) / ${columns.length})`,
+                xl: `calc((100% - ${(columns.length - 1) * 16}px) / ${columns.length})`
+              },
+              flex: {
+                md: 1,  // En desktop, cada columna ocupa el mismo espacio
+                lg: 1,
+                xl: 1
+              },
               bgcolor: '#f5f5f5',
-              p: 2
+              p: 2,
+              display: 'flex',
+              flexDirection: 'column'
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexShrink: 0 }}>
               <Box
                 sx={{
                   width: 12,
@@ -157,22 +187,28 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ assemblies, userRole, onRefre
                   mr: 1
                 }}
               />
-              <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              <Typography variant="h6" sx={{ flexGrow: 1, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                 {column.title}
               </Typography>
               <Chip label={column.items.length} size="small" />
             </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 2,
+              overflowY: 'auto',
+              flex: 1
+            }}>
               {column.items.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
                   No hay items
                 </Typography>
               ) : (
                 column.items.map(assembly => (
-                  <Card key={assembly.id} sx={{ cursor: 'pointer' }}>
+                  <Card key={assembly.id} sx={{ cursor: 'pointer', flexShrink: 0 }}>
                     <CardContent sx={{ pb: 1 }}>
-                      <Typography variant="subtitle1" fontWeight="bold">
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                         {assembly.Template?.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -204,6 +240,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ assemblies, userRole, onRefre
                           variant="contained"
                           color={action.color}
                           onClick={() => handleCardClick(assembly, action.status)}
+                          sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' } }}
                         >
                           {action.label}
                         </Button>
