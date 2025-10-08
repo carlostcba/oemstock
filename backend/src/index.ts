@@ -8,6 +8,8 @@ const db = require('../models');
 import { authenticateToken } from '../middleware/authMiddleware';
 import * as itemController from '../controllers/itemController';
 import * as stockController from '../controllers/stockController';
+import * as userController from '../controllers/userController';
+import * as siteController from '../controllers/siteController';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -23,6 +25,12 @@ app.post('/auth/login', auth.login);
 // Router para rutas protegidas
 const apiRouter = express.Router();
 apiRouter.use(authenticateToken);
+
+// --- Rutas de Usuarios ---
+apiRouter.get('/users', userController.getAllUsers);
+
+// --- Rutas de Sitios ---
+apiRouter.get('/sites', siteController.getAllSites);
 
 // --- Rutas de Items ---
 // Obtener todos los items (con filtros opcionales)

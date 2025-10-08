@@ -1,3 +1,5 @@
+// frontend/src/pages/AssemblyPage.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -22,8 +24,12 @@ import KanbanBoard from '../components/KanbanBoard';
 const AssemblyPage: React.FC = () => {
   // Estados para datos
   const [templates, setTemplates] = useState<api.Item[]>([]);
+  const [users, setUsers] = useState<api.User[]>([]);
+  const [sites, setSites] = useState<api.Site[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
+  const [selectedSite, setSelectedSite] = useState<string>('');
+  const [assignedTo, setAssignedTo] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
 
   // Estados para instancias
@@ -31,18 +37,22 @@ const AssemblyPage: React.FC = () => {
   
   // Estados para la UI
   const [loadingTemplates, setLoadingTemplates] = useState<boolean>(true);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
+  const [loadingSites, setLoadingSites] = useState<boolean>(true);
   const [loadingAssemblies, setLoadingAssemblies] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Detectar rol del usuario (hardcoded por ahora, deberia venir del contexto de auth)
+  // Detectar rol del usuario
   const [userRole] = useState<'OPERARIO' | 'SUPERVISOR' | 'ADMINISTRADOR'>('ADMINISTRADOR');
   const [activeTab, setActiveTab] = useState(0);
 
-  // Cargar las plantillas al montar el componente
+  // Cargar datos al montar el componente
   useEffect(() => {
     fetchTemplates();
+    fetchUsers();
+    fetchSites();
     fetchAssemblies();
   }, []);
 
@@ -58,6 +68,30 @@ const AssemblyPage: React.FC = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const data = await api.getAllUsers();
+      setUsers(data);
+    } catch (err: any) {
+      console.error('Error al cargar usuarios:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchSites = async () => {
+    try {
+      setLoadingSites(true);
+      const data = await api.getAllSites();
+      setSites(data);
+    } catch (err: any) {
+      console.error('Error al cargar sitios:', err);
+    } finally {
+      setLoadingSites(false);
+    }
+  };
+
   const fetchAssemblies = async () => {
     try {
       setLoadingAssemblies(true);
@@ -70,21 +104,13 @@ const AssemblyPage: React.FC = () => {
     }
   };
 
-  // Manejar el cambio de plantilla seleccionada
-  const handleTemplateChange = (event: SelectChangeEvent<string>) => {
-    setSelectedTemplate(event.target.value);
-    setError(null);
-    setSuccess(null);
-  };
-
-  // Manejar el envio del formulario de ensamblado
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setSuccess(null);
 
-    if (!selectedTemplate || quantity <= 0) {
-      setError('Por favor, seleccione una plantilla y una cantidad valida.');
+    if (!selectedTemplate || quantity <= 0 || !selectedSite) {
+      setError('Por favor, complete todos los campos requeridos.');
       return;
     }
 
@@ -93,27 +119,43 @@ const AssemblyPage: React.FC = () => {
       const payload: api.AssemblyPayload = {
         templateId: Number(selectedTemplate),
         quantity,
-        siteId: 1, // TODO: Agregar selector de sitio
+        siteId: Number(selectedSite),
+        assignedTo: assignedTo ? Number(assignedTo) : undefined,
         notes: notes || undefined
       };
+      
       const response = await api.createAssembly(payload);
       setSuccess(response.message);
       
       // Limpiar formulario
       setSelectedTemplate('');
       setQuantity(1);
+      setSelectedSite('');
+      setAssignedTo('');
       setNotes('');
       
       // Recargar instancias
       fetchAssemblies();
     } catch (err: any) {
-      setError(err.message || 'Ocurrio un error inesperado.');
+      // Mostrar error con detalles de stock insuficiente
+      if (err.message.includes('Stock insuficiente')) {
+        const errorResponse = JSON.parse(err.message.split(': ')[1] || '{}');
+        if (errorResponse.insufficientComponents) {
+          const componentsList = errorResponse.insufficientComponents
+            .map((c: any) => `${c.name} (${c.sku}): necesita ${c.required}, disponible ${c.available}`)
+            .join('; ');
+          setError(`Stock insuficiente: ${componentsList}`);
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError(err.message || 'Ocurrio un error inesperado.');
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Solo Admin y Supervisor pueden crear ensamblados
   const canCreateAssembly = userRole === 'ADMINISTRADOR' || userRole === 'SUPERVISOR';
 
   return (
@@ -147,7 +189,7 @@ const AssemblyPage: React.FC = () => {
         </Box>
       )}
 
-      {/* Tab 2: Crear Nuevo Ensamblado (solo Admin/Supervisor) */}
+      {/* Tab 2: Crear Nuevo Ensamblado */}
       {activeTab === 1 && canCreateAssembly && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>
@@ -158,12 +200,12 @@ const AssemblyPage: React.FC = () => {
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth disabled={loadingTemplates}>
-                  <InputLabel id="template-select-label">Plantilla de Producto/Kit</InputLabel>
+                  <InputLabel id="template-select-label">Plantilla de Producto/Kit *</InputLabel>
                   <Select
                     labelId="template-select-label"
                     value={selectedTemplate}
-                    label="Plantilla de Producto/Kit"
-                    onChange={handleTemplateChange}
+                    label="Plantilla de Producto/Kit *"
+                    onChange={(e) => setSelectedTemplate(e.target.value)}
                   >
                     {templates.map((template) => (
                       <MenuItem key={template.id} value={template.id}>
@@ -173,27 +215,69 @@ const AssemblyPage: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={3}>
+
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth disabled={loadingSites}>
+                  <InputLabel id="site-select-label">Sitio *</InputLabel>
+                  <Select
+                    labelId="site-select-label"
+                    value={selectedSite}
+                    label="Sitio *"
+                    onChange={(e) => setSelectedSite(e.target.value)}
+                  >
+                    {sites.map((site) => (
+                      <MenuItem key={site.id} value={site.id}>
+                        {site.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  label="Cantidad a Ensamblar"
+                  label="Cantidad a Ensamblar *"
                   type="number"
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
                   InputProps={{ inputProps: { min: 1 } }}
                 />
               </Grid>
-              <Grid item xs={12} md={3}>
+
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth disabled={loadingUsers}>
+                  <InputLabel id="assigned-select-label">Asignar a (Opcional)</InputLabel>
+                  <Select
+                    labelId="assigned-select-label"
+                    value={assignedTo}
+                    label="Asignar a (Opcional)"
+                    onChange={(e) => setAssignedTo(e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>Sin asignar</em>
+                    </MenuItem>
+                    {users.map((user) => (
+                      <MenuItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
                 <Button 
                   type="submit" 
                   variant="contained" 
                   fullWidth 
                   sx={{ height: '56px' }}
-                  disabled={submitting || !selectedTemplate}
+                  disabled={submitting || !selectedTemplate || !selectedSite}
                 >
                   {submitting ? <CircularProgress size={24} /> : 'Crear Solicitud'}
                 </Button>
               </Grid>
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth

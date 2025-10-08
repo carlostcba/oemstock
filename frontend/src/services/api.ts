@@ -4,6 +4,18 @@ const BASE_URL = 'http://localhost:3001/api';
 
 export type AssemblyStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'TO_VERIFY' | 'DONE' | 'CANCELADO';
 
+export interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface Site {
+  id: number;
+  name: string;
+}
+
 export interface Uom {
   id: number;
   name: string;
@@ -48,6 +60,7 @@ export interface AssemblyPayload {
   templateId: number;
   quantity: number;
   siteId: number;
+  assignedTo?: number;
   notes?: string;
 }
 
@@ -58,6 +71,7 @@ export interface AssemblyInstance {
   quantity: number;
   status: AssemblyStatus;
   created_by: number;
+  assigned_to: number | null;
   completed_at: string | null;
   completed_by: number | null;
   verified_by: number | null;
@@ -93,6 +107,14 @@ export interface AssemblyInstance {
     email: string;
   };
 }
+
+export const getAllUsers = async (): Promise<User[]> => {
+  return apiFetch<User[]>(`${BASE_URL}/users`);
+};
+
+export const getAllSites = async (): Promise<Site[]> => {
+  return apiFetch<Site[]>(`${BASE_URL}/sites`);
+};
 
 // --- Logica de API ---
 

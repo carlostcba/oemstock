@@ -35,6 +35,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'verified_by',
         as: 'Verifier'
       });
+
+      // Relacion con el usuario asignado a la solicitud
+      AssemblyInstance.belongsTo(models.User, {
+        foreignKey: 'assigned_to',
+        as: 'AssignedUser'
+      });
     }
   }
 
@@ -63,6 +69,10 @@ module.exports = (sequelize, DataTypes) => {
       created_by: {
         type: DataTypes.INTEGER,
         allowNull: false
+      },
+      assigned_to: {
+        type: DataTypes.INTEGER,
+        allowNull: true
       },
       // Timestamps para cada estado del flujo Kanban
       backlog_at: {

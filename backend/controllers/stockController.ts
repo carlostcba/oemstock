@@ -5,8 +5,8 @@ const db = require('../models');
  * POST /api/stock/assembly - Crear una instancia de ensamblado y reservar stock
  */
 export const createAssembly = async (req: Request, res: Response) => {
-    const { templateId, quantity, siteId, notes } = req.body;
-    const userId = (req as any).user?.id; // Obtenido del middleware de autenticacion
+    const { templateId, quantity, siteId, assignedTo, notes } = req.body;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
         return res.status(401).json({ message: 'Usuario no autenticado' });
@@ -50,7 +50,7 @@ export const createAssembly = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'La plantilla no tiene materiales asociados.' });
         }
 
-        // Verificar disponibilidad y reservar stock
+        // ✅ VALIDACION DE STOCK: Verificar disponibilidad ANTES de reservar
         const insufficientComponents = [];
         
         for (const bomItem of bomItems) {
@@ -68,6 +68,7 @@ export const createAssembly = async (req: Request, res: Response) => {
                 const childItem = await db.Item.findByPk(bomItem.child_item_id);
                 insufficientComponents.push({
                     name: childItem?.name || 'Desconocido',
+                    sku: childItem?.sku || 'N/A',
                     required: requiredQuantity,
                     available: availableStock
                 });
@@ -83,7 +84,7 @@ export const createAssembly = async (req: Request, res: Response) => {
             });
         }
 
-        // Reservar el stock
+        // Si hay stock suficiente, reservar
         for (const bomItem of bomItems) {
             const requiredQuantity = bomItem.quantity * quantity;
             
@@ -105,6 +106,7 @@ export const createAssembly = async (req: Request, res: Response) => {
             status: 'BACKLOG',
             backlog_at: new Date(),
             created_by: userId,
+            assigned_to: assignedTo || null,
             notes: notes || null
         }, { transaction });
 
