@@ -82,7 +82,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ assemblies, userRole, onRefre
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({
-          newStatus,
+          status: newStatus,  // ✅ Cambiado de "newStatus" a "status"
           notes: notes || undefined
         })
       });
